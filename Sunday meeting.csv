@@ -1,10 +1,10 @@
-﻿Your name,Monday,Tuesday,Wednesday,Thursday,Friday
-Golam Rabbi ,not available,1-5,not available,1-5,9-1
-Bikram Das,1-5,1-5,1-5,9-1,9-1
+﻿Your name,Monday,Tuesday,Wednesday,Thursday,Friday                            #Example of what the data looks like
+GR ,not available,1-5,not available,1-5,9-1
+BD,1-5,1-5,1-5,9-1,9-1
 Milind Kumar,9-1,9-1,9-1,9-1,9-1
-Brandon Chiang,not available,not available,not available,1-5,1-5
-Chaitra Telukala ,9-1,9-1,not available,9-1,9-1
-Antonio Munoz Carazo,1-5,9-1,not available,not available,9-1
-Junior ,11-5,not available,not available,1-5,1-5
-Sophie,,,,,11-2
-Muhammed,not available,9-1,not available,9-1,not available
+BC,not available,not available,not available,1-5,1-5
+CT ,9-1,9-1,not available,9-1,9-1
+AMC,1-5,9-1,not available,not available,9-1
+JT ,11-5,not available,not available,1-5,1-5
+SS,,,,,11-2
+MM,not available,9-1,not available,9-1,not available

@@ -40,6 +40,9 @@ def assign_shifts(people):
     flex = people
     final_list = {}
     people_keys = people.keys()
+    
+    day = ["Monday","Tuesday","Wednesday","Thursday","Friday"]
+    
     for key in people_keys:
         
         cont_hours = {}
@@ -80,7 +83,12 @@ def assign_shifts(people):
                 cont_hours[person2] = cont_hours[person2] + 1
                 shift_counter[person2] = shift_counter[person2] + 1
             time += 1
-        print(this_day_schedule)
+        if this_day_schedule is None:
+            break
+        else:
+            print(day.pop(0))
+            print(this_day_schedule)
+            print(" ")
         #print(shift_counter)
             
 print(assign_shifts(can))       
