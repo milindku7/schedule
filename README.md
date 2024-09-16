@@ -1,0 +1,1 @@
+A scheduling algorithm I made using what I learned in Algorithms and Complexity. It reads the data and assigns shifts to people while making sure that the everyone gets equal hours. It also makes sure that multiple people working have overlapping shifts so that even if someone is not available for their shift, there is at least one person working.
