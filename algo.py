@@ -1,24 +1,6 @@
 import csv
 
-people = []
-
 shift_counter = {}
-
-def sorting(filename):
-    people_shift = {}
-    with open(filename,"r") as file:
-        reader = csv.reader(file)
-        next(reader)
-        for row in reader:
-            people_shift[str(row[0])] = []
-            
-            for shif in range(len(row)):
-                if shif != 0:
-                    list = people_shift[str(row[0])]
-                    list.append(str(row[shif]))
-                    people_shift[str(row[0])] = list
-            
-    return people_shift
 
 def day_sort(filename):
     day_dict = {1:{},2:{},3:{},4:{},5:{}}
@@ -26,6 +8,8 @@ def day_sort(filename):
         reader = csv.reader(file)
         next(reader)
         for row in reader:
+            shift_counter[str(row[0])] = 0
+            
             for shif in range(len(row)):
                 if shif != 0 and str(row[shif]) != "not available" and str(row[shif]) != "":
                     
@@ -47,91 +31,64 @@ def day_sort(filename):
                     day_dict[shif] = curr_day_dict
     return day_dict
 
-            
-    
-can = sorting("excel.csv")
-c = day_sort("Sunday meeting.csv")
-print("the c")
-print(c)
+        
+can = day_sort("Sunday meeting.csv")
+
 
 def assign_shifts(people):
+    
+    flex = people
+    final_list = {}
     people_keys = people.keys()
-    small = 100
-    small_min = 100
     for key in people_keys:
+        
+        cont_hours = {}
+        for peeps in shift_counter:
+            cont_hours[peeps] = 0
+            
         val = people[key]
-
-        for time in val:
-            ti = time.split(":")
-            tim = int(ti[1])
-            t = int(ti[0])
-            if t < small:
-                small = t
-                small_min = tim
-            elif t == small:
-                if tim < small_min:
-                    small_min = tim
-    first_shift = str(small) + ":" + str(small_min)
-    
-    shift_counter = {}
-    for key in people_keys:
-        shift_counter[key] = 0
-    
-    people_for_the_shift = {}
-    for key in people_keys:
-        val = people[key]
-        for time in val:
-            if time not in people_for_the_shift.keys():
-                people_for_the_shift[time] = 1
-            else:
-                curr = people_for_the_shift[time]
-                people_for_the_shift[time] = curr + 1
-    
-    sorted_times = sorted(people_for_the_shift.items(), key=lambda x:x[1])
-    
-    final_dict = {}
-    
-    for i in range(len(sorted_times)):
-        time_tuple = sorted_times.pop()
-        time = time_tuple[0]
-        for key in people_keys:
-            val = people[key]
-            for t in val:
-                if t == time:
-                    if t not in final_dict.keys():
-                        l = []
-                        l.append(key)
-                        final_dict[time] = l
-                        num = shift_counter[key]
-                        shift_counter[key] = num + 1
-                    else:
-                        pe = final_dict[t]
-                        
-                        if len(pe) < 2:
-                            pe.append(key)
-                            final_dict[time] = pe
-                            num = shift_counter[key]
-                            shift_counter[key] = num + 1
-                        else:
-                            curr_key_shifts = shift_counter[key]
-                            ppp = pe
-                            
-                            for po in pe:                               
-                                if po in shift_counter.keys():                              
-                                    po_shifts = shift_counter[po]
-                                    if po_shifts > curr_key_shifts:
-                                        ppp.remove(po)
-                                        ppp.append(key)
-                                        final_dict[time] = ppp
-                                        shift_counter[key] = shift_counter[key] + 1
-                                        shift_counter[po] = shift_counter[po] - 1
-    print(final_dict)
-                                    
+        this_day_schedule = {}
+        time_min = min(val.keys())
+        time_max = max(val.keys())
+        time = time_min
+        
+        for i in range(time_max - time_min + 1):
+            people_avail = val[time]
+            chosen_person = people_avail[0]
+            for person in people_avail:
+                if cont_hours[person] < 4 and shift_counter[person] < shift_counter[chosen_person]:
+                    if (shift_counter[chosen_person] - shift_counter[person] > 2):
+                        chosen_person = person
+                    elif cont_hours[chosen_person] > 2:
+                        chosen_person = person
+            if time < 15:       
+                lowest = 10
+                second_person = ''
+                for person2 in people_avail:
+                    if cont_hours[person2] < 4 and person2 != chosen_person:
+                        diff = shift_counter[person2] - shift_counter[chosen_person]
+                        if diff < lowest:
+                            lowest = diff
+                            second_person = person2
+                                        
+            this_day_schedule[time] = [chosen_person]
+            if time < 15:
+                this_day_schedule[time].append(second_person)
+            cont_hours[chosen_person] = cont_hours[chosen_person] + 1
+            shift_counter[chosen_person] = shift_counter[chosen_person] + 1
+            if time < 15:
+                cont_hours[person2] = cont_hours[person2] + 1
+                shift_counter[person2] = shift_counter[person2] + 1
+            time += 1
+        print(this_day_schedule)
+        #print(shift_counter)
+            
+print(assign_shifts(can))       
                                 
                         
                             
                     
                 
     
-assign_shifts(can)
+
         
