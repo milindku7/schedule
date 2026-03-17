@@ -1,0 +1,763 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Shift Scheduler</title>
+  <meta name="description" content="Employee shift scheduling tool with CSV import and automatic schedule generation.">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg-primary: #0f0f1a;
+      --bg-secondary: #1a1a2e;
+      --bg-card: rgba(30, 30, 55, 0.7);
+      --bg-card-hover: rgba(40, 40, 70, 0.8);
+      --border: rgba(255, 255, 255, 0.08);
+      --border-focus: rgba(130, 100, 255, 0.5);
+      --text-primary: #e8e8f0;
+      --text-secondary: #9090b0;
+      --text-muted: #606080;
+      --accent: #8264ff;
+      --accent-glow: rgba(130, 100, 255, 0.25);
+      --accent-2: #64d2ff;
+      --accent-3: #ff6b9d;
+      --success: #4ade80;
+      --warning: #fbbf24;
+      --danger: #f87171;
+      --radius: 14px;
+      --radius-sm: 8px;
+      --shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    }
+
+    body {
+      font-family: 'Inter', -apple-system, system-ui, sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated gradient background */
+    body::before {
+      content: '';
+      position: fixed;
+      top: -50%; left: -50%;
+      width: 200%; height: 200%;
+      background: radial-gradient(circle at 30% 30%, rgba(130, 100, 255, 0.06) 0%, transparent 50%),
+                  radial-gradient(circle at 70% 70%, rgba(100, 210, 255, 0.04) 0%, transparent 50%),
+                  radial-gradient(circle at 50% 50%, rgba(255, 107, 157, 0.03) 0%, transparent 50%);
+      animation: bgShift 20s ease-in-out infinite alternate;
+      z-index: 0;
+      pointer-events: none;
+    }
+    @keyframes bgShift {
+      0% { transform: translate(0, 0) rotate(0deg); }
+      100% { transform: translate(-5%, -5%) rotate(3deg); }
+    }
+
+    .app { position: relative; z-index: 1; max-width: 1300px; margin: 0 auto; padding: 32px 24px 64px; }
+
+    /* Header */
+    .header {
+      text-align: center; margin-bottom: 40px;
+      animation: fadeInDown 0.6s ease;
+    }
+    .header h1 {
+      font-size: 2.4rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.5px;
+    }
+    .header p { color: var(--text-secondary); margin-top: 8px; font-size: 1rem; font-weight: 300; }
+
+    /* Glassmorphism cards */
+    .card {
+      background: var(--bg-card);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 28px;
+      box-shadow: var(--shadow);
+      margin-bottom: 28px;
+      animation: fadeInUp 0.5s ease;
+    }
+    .card-title {
+      font-size: 1.15rem; font-weight: 600; margin-bottom: 20px;
+      display: flex; align-items: center; gap: 10px;
+    }
+    .card-title .icon { font-size: 1.3rem; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 22px;
+      border: none; border-radius: var(--radius-sm);
+      font-family: inherit; font-size: 0.875rem; font-weight: 500;
+      cursor: pointer;
+      transition: all 0.25s ease;
+      position: relative; overflow: hidden;
+    }
+    .btn::after {
+      content: ''; position: absolute; inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.1), transparent);
+      opacity: 0; transition: opacity 0.25s;
+    }
+    .btn:hover::after { opacity: 1; }
+    .btn:active { transform: scale(0.97); }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent), #6b4fd4);
+      color: #fff;
+      box-shadow: 0 4px 20px var(--accent-glow);
+    }
+    .btn-primary:hover { box-shadow: 0 6px 30px rgba(130, 100, 255, 0.4); transform: translateY(-1px); }
+
+    .btn-secondary {
+      background: rgba(255,255,255,0.06);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+    .btn-secondary:hover { background: rgba(255,255,255,0.1); border-color: rgba(255,255,255,0.15); }
+
+    .btn-success {
+      background: linear-gradient(135deg, #22c55e, #16a34a);
+      color: #fff;
+      box-shadow: 0 4px 20px rgba(34, 197, 94, 0.25);
+    }
+    .btn-success:hover { box-shadow: 0 6px 30px rgba(34, 197, 94, 0.4); transform: translateY(-1px); }
+
+    .btn-danger {
+      background: rgba(248, 113, 113, 0.15);
+      color: var(--danger);
+      border: 1px solid rgba(248, 113, 113, 0.2);
+    }
+    .btn-danger:hover { background: rgba(248, 113, 113, 0.25); }
+
+    .btn-group { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 20px; }
+
+    /* Table */
+    .table-wrap {
+      overflow-x: auto;
+      border-radius: var(--radius-sm);
+      border: 1px solid var(--border);
+    }
+    table {
+      width: 100%; border-collapse: collapse;
+      font-size: 0.875rem;
+    }
+    th, td { padding: 12px 16px; text-align: left; border-bottom: 1px solid var(--border); }
+    th {
+      background: rgba(130, 100, 255, 0.08);
+      color: var(--accent-2); font-weight: 600;
+      text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.5px;
+      position: sticky; top: 0; z-index: 2;
+    }
+    tr { transition: background 0.2s; }
+    tr:hover { background: rgba(255,255,255, 0.02); }
+    tr:last-child td { border-bottom: none; }
+
+    td input {
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: 6px;
+      color: var(--text-primary);
+      font-family: inherit; font-size: 0.875rem;
+      padding: 6px 10px;
+      width: 100%; min-width: 100px;
+      transition: all 0.2s;
+    }
+    td input:hover { border-color: var(--border); }
+    td input:focus {
+      outline: none;
+      border-color: var(--border-focus);
+      background: rgba(130, 100, 255, 0.05);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+    td input.name-input { min-width: 140px; font-weight: 500; }
+
+    .remove-row-btn {
+      background: none; border: none; color: var(--text-muted);
+      cursor: pointer; font-size: 1.1rem; padding: 4px;
+      border-radius: 4px; transition: all 0.2s;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .remove-row-btn:hover { color: var(--danger); background: rgba(248, 113, 113, 0.1); }
+
+    /* Schedule grid */
+    .schedule-grid {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+    }
+    @media (max-width: 900px) {
+      .schedule-grid { grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 500px) {
+      .schedule-grid { grid-template-columns: 1fr; }
+    }
+
+    .day-column {
+      background: rgba(255,255,255, 0.02);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+      animation: fadeInUp 0.4s ease backwards;
+    }
+    .day-column:nth-child(1) { animation-delay: 0s; }
+    .day-column:nth-child(2) { animation-delay: 0.06s; }
+    .day-column:nth-child(3) { animation-delay: 0.12s; }
+    .day-column:nth-child(4) { animation-delay: 0.18s; }
+    .day-column:nth-child(5) { animation-delay: 0.24s; }
+
+    .day-header {
+      padding: 14px 16px;
+      font-weight: 600; font-size: 0.9rem;
+      background: linear-gradient(135deg, rgba(130, 100, 255, 0.12), rgba(100, 210, 255, 0.08));
+      border-bottom: 1px solid var(--border);
+      text-align: center;
+    }
+
+    .hour-slot {
+      display: flex; align-items: stretch;
+      border-bottom: 1px solid var(--border);
+      transition: background 0.2s;
+      min-height: 42px;
+    }
+    .hour-slot:last-child { border-bottom: none; }
+    .hour-slot:hover { background: rgba(255,255,255, 0.02); }
+
+    .hour-label {
+      width: 58px; min-width: 58px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 0.7rem; font-weight: 500;
+      color: var(--text-muted);
+      border-right: 1px solid var(--border);
+      background: rgba(0,0,0,0.15);
+    }
+
+    .hour-people {
+      flex: 1;
+      display: flex; flex-wrap: wrap; align-items: center;
+      gap: 4px; padding: 6px 8px;
+    }
+
+    .person-chip {
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-size: 0.72rem; font-weight: 500;
+      white-space: nowrap;
+      animation: chipIn 0.3s ease backwards;
+    }
+
+    /* Stats */
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+      gap: 12px;
+    }
+    .stat-card {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      padding: 16px;
+      text-align: center;
+      transition: all 0.25s;
+      animation: fadeInUp 0.4s ease backwards;
+    }
+    .stat-card:hover { background: rgba(255,255,255,0.05); transform: translateY(-2px); }
+    .stat-name { font-size: 0.82rem; font-weight: 500; margin-bottom: 6px; }
+    .stat-value {
+      font-size: 1.8rem; font-weight: 700;
+      background: linear-gradient(135deg, var(--accent), var(--accent-2));
+      -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+    .stat-label { font-size: 0.7rem; color: var(--text-muted); margin-top: 2px; }
+
+    .stat-bar-bg {
+      height: 4px; border-radius: 2px;
+      background: rgba(255,255,255,0.06);
+      margin-top: 10px; overflow: hidden;
+    }
+    .stat-bar {
+      height: 100%; border-radius: 2px;
+      background: linear-gradient(90deg, var(--accent), var(--accent-2));
+      transition: width 0.6s ease;
+    }
+
+    /* Empty state */
+    .empty-state {
+      text-align: center; padding: 48px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .icon { font-size: 3rem; margin-bottom: 12px; opacity: 0.5; }
+    .empty-state p { font-size: 0.95rem; }
+
+    /* Hidden file input */
+    #csvUpload { display: none; }
+
+    /* Animations */
+    @keyframes fadeInUp {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes fadeInDown {
+      from { opacity: 0; transform: translateY(-16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes chipIn {
+      from { opacity: 0; transform: scale(0.8); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Toast notification */
+    .toast {
+      position: fixed; bottom: 32px; right: 32px;
+      padding: 14px 24px;
+      border-radius: var(--radius-sm);
+      font-size: 0.875rem; font-weight: 500;
+      z-index: 1000;
+      animation: slideInRight 0.4s ease, fadeOut 0.4s ease 2.6s forwards;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+    }
+    .toast.success { background: linear-gradient(135deg, #22c55e, #16a34a); color: #fff; }
+    .toast.error { background: linear-gradient(135deg, #ef4444, #dc2626); color: #fff; }
+
+    @keyframes slideInRight {
+      from { opacity: 0; transform: translateX(40px); }
+      to { opacity: 1; transform: translateX(0); }
+    }
+    @keyframes fadeOut {
+      from { opacity: 1; }
+      to { opacity: 0; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="app">
+
+  <!-- Header -->
+  <header class="header">
+    <h1>⚡ Shift Scheduler</h1>
+    <p>Import availability, generate fair schedules automatically</p>
+  </header>
+
+  <!-- Availability Input -->
+  <section class="card" id="availability-card">
+    <div class="card-title"><span class="icon">📋</span> Employee Availability</div>
+    <div class="btn-group">
+      <button class="btn btn-secondary" id="btn-import" onclick="document.getElementById('csvUpload').click()">
+        📁 Import CSV
+      </button>
+      <input type="file" id="csvUpload" accept=".csv" onchange="importCSV(event)">
+      <button class="btn btn-secondary" id="btn-add-row" onclick="addRow()">➕ Add Employee</button>
+      <button class="btn btn-danger" id="btn-clear" onclick="clearTable()">🗑️ Clear All</button>
+    </div>
+    <div class="table-wrap">
+      <table id="availability-table">
+        <thead>
+          <tr>
+            <th>Name</th>
+            <th>Monday</th>
+            <th>Tuesday</th>
+            <th>Wednesday</th>
+            <th>Thursday</th>
+            <th>Friday</th>
+            <th></th>
+          </tr>
+        </thead>
+        <tbody id="table-body">
+          <!-- rows inserted dynamically -->
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- Generate Button -->
+  <div style="text-align: center; margin-bottom: 28px;">
+    <button class="btn btn-success" id="btn-generate" onclick="generateSchedule()" style="padding: 14px 40px; font-size: 1rem;">
+      🚀 Generate Schedule
+    </button>
+  </div>
+
+  <!-- Schedule Output -->
+  <section class="card" id="schedule-card" style="display: none;">
+    <div class="card-title"><span class="icon">📅</span> Generated Schedule</div>
+    <div class="schedule-grid" id="schedule-grid"></div>
+  </section>
+
+  <!-- Shift Stats -->
+  <section class="card" id="stats-card" style="display: none;">
+    <div class="card-title"><span class="icon">📊</span> Shift Fairness</div>
+    <div class="stats-grid" id="stats-grid"></div>
+  </section>
+
+</div>
+
+<script>
+// ─── Color palette for employee chips ───
+const CHIP_COLORS = [
+  { bg: 'rgba(130,100,255,0.18)', text: '#b8a4ff', border: 'rgba(130,100,255,0.3)' },
+  { bg: 'rgba(100,210,255,0.18)', text: '#7dd8ff', border: 'rgba(100,210,255,0.3)' },
+  { bg: 'rgba(255,107,157,0.18)', text: '#ff8fb5', border: 'rgba(255,107,157,0.3)' },
+  { bg: 'rgba(74,222,128,0.18)', text: '#6ee7a0', border: 'rgba(74,222,128,0.3)' },
+  { bg: 'rgba(251,191,36,0.18)', text: '#fcd34d', border: 'rgba(251,191,36,0.3)' },
+  { bg: 'rgba(244,114,182,0.18)', text: '#f472b6', border: 'rgba(244,114,182,0.3)' },
+  { bg: 'rgba(168,85,247,0.18)', text: '#c084fc', border: 'rgba(168,85,247,0.3)' },
+  { bg: 'rgba(34,211,238,0.18)', text: '#67e8f9', border: 'rgba(34,211,238,0.3)' },
+  { bg: 'rgba(251,146,60,0.18)',  text: '#fb923c', border: 'rgba(251,146,60,0.3)' },
+  { bg: 'rgba(163,230,53,0.18)',  text: '#bef264', border: 'rgba(163,230,53,0.3)' },
+];
+
+let colorMap = {};
+let colorIdx = 0;
+
+function getColor(name) {
+  if (!colorMap[name]) {
+    colorMap[name] = CHIP_COLORS[colorIdx % CHIP_COLORS.length];
+    colorIdx++;
+  }
+  return colorMap[name];
+}
+
+// ─── Format hour to readable string ───
+function formatHour(h) {
+  if (h === 12) return '12 PM';
+  if (h === 0 || h === 24) return '12 AM';
+  if (h > 12) return (h - 12) + ' PM';
+  return h + ' AM';
+}
+
+// ─── Table management ───
+function createRow(name = '', mon = '', tue = '', wed = '', thu = '', fri = '') {
+  const tr = document.createElement('tr');
+  tr.innerHTML = `
+    <td><input type="text" class="name-input" value="${escHtml(name)}" placeholder="Employee name"></td>
+    <td><input type="text" value="${escHtml(mon)}" placeholder="e.g. 9-1"></td>
+    <td><input type="text" value="${escHtml(tue)}" placeholder="e.g. 1-5"></td>
+    <td><input type="text" value="${escHtml(wed)}" placeholder="e.g. 9-1"></td>
+    <td><input type="text" value="${escHtml(thu)}" placeholder="e.g. 1-5"></td>
+    <td><input type="text" value="${escHtml(fri)}" placeholder="e.g. 9-1"></td>
+    <td><button class="remove-row-btn" onclick="this.closest('tr').remove()" title="Remove">✕</button></td>
+  `;
+  return tr;
+}
+
+function escHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+function addRow() {
+  document.getElementById('table-body').appendChild(createRow());
+}
+
+function clearTable() {
+  document.getElementById('table-body').innerHTML = '';
+  document.getElementById('schedule-card').style.display = 'none';
+  document.getElementById('stats-card').style.display = 'none';
+}
+
+// ─── CSV Import ───
+function importCSV(event) {
+  const file = event.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = function(e) {
+    const lines = e.target.result.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+    if (lines.length < 2) { showToast('CSV is empty or malformed.', 'error'); return; }
+
+    const tbody = document.getElementById('table-body');
+    tbody.innerHTML = '';
+
+    // Skip header row (index 0)
+    for (let i = 1; i < lines.length; i++) {
+      const cols = parseCSVLine(lines[i]);
+      const name = (cols[0] || '').trim();
+      const vals = [];
+      for (let c = 1; c <= 5; c++) {
+        let v = (cols[c] || '').trim();
+        if (v.toLowerCase() === 'not available') v = 'not available';
+        vals.push(v);
+      }
+      tbody.appendChild(createRow(name, vals[0], vals[1], vals[2], vals[3], vals[4]));
+    }
+
+    showToast('CSV imported successfully!', 'success');
+  };
+  reader.readAsText(file);
+  event.target.value = ''; // reset so same file can be re-imported
+}
+
+function parseCSVLine(line) {
+  const result = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < line.length; i++) {
+    const ch = line[i];
+    if (ch === '"') { inQuotes = !inQuotes; }
+    else if (ch === ',' && !inQuotes) { result.push(current); current = ''; }
+    else { current += ch; }
+  }
+  result.push(current);
+  return result;
+}
+
+// ─── Algorithm (ported from algo.py) ───
+
+function daySort(rows) {
+  // rows: array of { name, days: [mon, tue, wed, thu, fri] }
+  const dayDict = { 1: {}, 2: {}, 3: {}, 4: {}, 5: {} };
+  const shiftCounter = {};
+
+  for (const row of rows) {
+    const name = row.name;
+    shiftCounter[name] = 0;
+
+    for (let shif = 0; shif < 5; shif++) {
+      const val = row.days[shif].trim();
+      if (val === '' || val.toLowerCase() === 'not available') continue;
+
+      const parts = val.split('-');
+      let start = parseInt(parts[0]);
+      let end = parseInt(parts[1]);
+
+      // Same 12-hour adjustment as algo.py: hours < 9 get +12
+      if (start < 9) start += 12;
+      if (end < 9) end += 12;
+
+      const dayKey = shif + 1; // 1-indexed days
+      const currDayDict = dayDict[dayKey];
+      for (let t = start; t < end; t++) {
+        if (!currDayDict[t]) currDayDict[t] = [];
+        currDayDict[t].push(name);
+      }
+    }
+  }
+
+  return { dayDict, shiftCounter };
+}
+
+function assignShifts(dayDict, shiftCounter) {
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+  const schedule = {}; // { dayName: { hour: [person, ...] } }
+
+  for (let key = 1; key <= 5; key++) {
+    const val = dayDict[key];
+    const hours = Object.keys(val).map(Number);
+    if (hours.length === 0) continue;
+
+    const contHours = {};
+    for (const p in shiftCounter) contHours[p] = 0;
+
+    const timeMin = Math.min(...hours);
+    const timeMax = Math.max(...hours);
+    const thisDaySchedule = {};
+    let time = timeMin;
+
+    for (let i = 0; i <= timeMax - timeMin; i++) {
+      const peopleAvail = val[time];
+      if (!peopleAvail || peopleAvail.length === 0) { time++; continue; }
+
+      let chosenPerson = peopleAvail[0];
+      for (const person of peopleAvail) {
+        if (contHours[person] < 4 && shiftCounter[person] < shiftCounter[chosenPerson]) {
+          if (shiftCounter[chosenPerson] - shiftCounter[person] > 2) {
+            chosenPerson = person;
+          } else if (contHours[chosenPerson] > 2) {
+            chosenPerson = person;
+          }
+        }
+      }
+
+      let secondPerson = '';
+      if (time < 15) {
+        let lowest = 10;
+        for (const person2 of peopleAvail) {
+          if (contHours[person2] < 4 && person2 !== chosenPerson) {
+            const diff = shiftCounter[person2] - shiftCounter[chosenPerson];
+            if (diff < lowest) {
+              lowest = diff;
+              secondPerson = person2;
+            }
+          }
+        }
+      }
+
+      thisDaySchedule[time] = [chosenPerson];
+      if (time < 15 && secondPerson) {
+        thisDaySchedule[time].push(secondPerson);
+      }
+
+      contHours[chosenPerson] = (contHours[chosenPerson] || 0) + 1;
+      shiftCounter[chosenPerson] = (shiftCounter[chosenPerson] || 0) + 1;
+
+      if (time < 15 && secondPerson) {
+        contHours[secondPerson] = (contHours[secondPerson] || 0) + 1;
+        shiftCounter[secondPerson] = (shiftCounter[secondPerson] || 0) + 1;
+      }
+
+      time++;
+    }
+
+    if (Object.keys(thisDaySchedule).length > 0) {
+      schedule[dayNames[key - 1]] = thisDaySchedule;
+    }
+  }
+
+  return { schedule, shiftCounter };
+}
+
+// ─── Generate Schedule ───
+function generateSchedule() {
+  const tbody = document.getElementById('table-body');
+  const trs = tbody.querySelectorAll('tr');
+  if (trs.length === 0) {
+    showToast('Add employees first or import a CSV.', 'error');
+    return;
+  }
+
+  // Collect data from table
+  const rows = [];
+  for (const tr of trs) {
+    const inputs = tr.querySelectorAll('input');
+    const name = inputs[0].value.trim();
+    if (!name) continue;
+    const days = [];
+    for (let d = 1; d <= 5; d++) {
+      days.push(inputs[d].value.trim());
+    }
+    rows.push({ name, days });
+  }
+
+  if (rows.length === 0) {
+    showToast('No valid employee data found.', 'error');
+    return;
+  }
+
+  // Reset colors
+  colorMap = {};
+  colorIdx = 0;
+
+  // Run algorithm
+  const { dayDict, shiftCounter } = daySort(rows);
+  const result = assignShifts(dayDict, shiftCounter);
+
+  renderSchedule(result.schedule);
+  renderStats(result.shiftCounter);
+
+  showToast('Schedule generated!', 'success');
+}
+
+// ─── Render Schedule Grid ───
+function renderSchedule(schedule) {
+  const grid = document.getElementById('schedule-grid');
+  grid.innerHTML = '';
+
+  const dayNames = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
+
+  for (const dayName of dayNames) {
+    const col = document.createElement('div');
+    col.className = 'day-column';
+
+    const header = document.createElement('div');
+    header.className = 'day-header';
+    header.textContent = dayName;
+    col.appendChild(header);
+
+    const daySchedule = schedule[dayName];
+    if (!daySchedule || Object.keys(daySchedule).length === 0) {
+      const empty = document.createElement('div');
+      empty.style.cssText = 'padding: 24px; text-align: center; color: var(--text-muted); font-size: 0.8rem;';
+      empty.textContent = 'No shifts';
+      col.appendChild(empty);
+    } else {
+      const hours = Object.keys(daySchedule).map(Number).sort((a, b) => a - b);
+      for (const hour of hours) {
+        const slot = document.createElement('div');
+        slot.className = 'hour-slot';
+
+        const label = document.createElement('div');
+        label.className = 'hour-label';
+        label.textContent = formatHour(hour);
+
+        const people = document.createElement('div');
+        people.className = 'hour-people';
+
+        for (const person of daySchedule[hour]) {
+          if (!person) continue;
+          const chip = document.createElement('span');
+          chip.className = 'person-chip';
+          const c = getColor(person);
+          chip.style.cssText = `background: ${c.bg}; color: ${c.text}; border: 1px solid ${c.border};`;
+          chip.textContent = person;
+          people.appendChild(chip);
+        }
+
+        slot.appendChild(label);
+        slot.appendChild(people);
+        col.appendChild(slot);
+      }
+    }
+
+    grid.appendChild(col);
+  }
+
+  document.getElementById('schedule-card').style.display = '';
+}
+
+// ─── Render Stats ───
+function renderStats(shiftCounter) {
+  const grid = document.getElementById('stats-grid');
+  grid.innerHTML = '';
+
+  const entries = Object.entries(shiftCounter).filter(([_, v]) => v > 0).sort((a, b) => b[1] - a[1]);
+  if (entries.length === 0) return;
+
+  const maxShifts = Math.max(...entries.map(e => e[1]));
+
+  for (let i = 0; i < entries.length; i++) {
+    const [name, count] = entries[i];
+    const c = getColor(name);
+    const card = document.createElement('div');
+    card.className = 'stat-card';
+    card.style.animationDelay = `${i * 0.06}s`;
+
+    const pct = maxShifts > 0 ? Math.round((count / maxShifts) * 100) : 0;
+
+    card.innerHTML = `
+      <div class="stat-name" style="color: ${c.text}">${escHtml(name)}</div>
+      <div class="stat-value">${count}</div>
+      <div class="stat-label">total hours</div>
+      <div class="stat-bar-bg"><div class="stat-bar" style="width: ${pct}%; background: linear-gradient(90deg, ${c.border}, ${c.text});"></div></div>
+    `;
+    grid.appendChild(card);
+  }
+
+  document.getElementById('stats-card').style.display = '';
+}
+
+// ─── Toast Notification ───
+function showToast(msg, type) {
+  const existing = document.querySelector('.toast');
+  if (existing) existing.remove();
+
+  const toast = document.createElement('div');
+  toast.className = `toast ${type}`;
+  toast.textContent = msg;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 3000);
+}
+
+// ─── Initialize with one empty row ───
+addRow();
+</script>
+
+</body>
+</html>
